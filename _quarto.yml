@@ -1,0 +1,21 @@
+project:
+  type: website
+  output-dir: docs
+
+website:
+  title: "SBS"
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - href: sbs.qmd
+        text: "SBS"
+
+format:
+  html:
+    theme: cosmo
+    css: styles.css
+    toc: true
+
+
+

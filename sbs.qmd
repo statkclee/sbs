@@ -1,0 +1,30 @@
+---
+title: "SBS"
+editor_options: 
+  chunk_output_type: console
+---
+
+
+```{r}
+library(reticulate)
+library(tidyverse)
+library(tuber)
+
+# yt_oauth(app_id = Sys.getenv("yt_app_id"), 
+#          app_secret = Sys.getenv("app_secret"),
+#          token = "")
+
+yt_oauth(token = ".httr-oauth")
+
+```
+
+
+```{r}
+youtuber_meta = data.frame(channel = c("부동산 읽어주는 남자"), 
+                           channel_id = "UC2QeHNJFfuQWB4cy3M-745g")
+
+ytber_id = get_channel_stats(channel_id = youtuber_meta$channel_id[1])
+
+```
+
+
