@@ -4,27 +4,164 @@ editor_options:
   chunk_output_type: console
 ---
 
+#  채널 정보
 
 ```{r}
-library(reticulate)
-library(tidyverse)
-library(tuber)
+library(jsonlite)
 
-# yt_oauth(app_id = Sys.getenv("yt_app_id"), 
-#          app_secret = Sys.getenv("app_secret"),
-#          token = "")
+## K-POP 1 ---------
 
-yt_oauth(token = ".httr-oauth")
+kpop_channel <- jsonlite::read_json('data/kpop_channel.json')
+
+kpop_tbl <- kpop_channel$items[[1]]$statistics |> 
+  enframe() |> 
+  mutate(stat = map_chr(value, 1)) |> 
+  select(-value) |>
+  pivot_wider(names_from = name, values_from = stat) |> 
+  select(-hiddenSubscriberCount) |>
+  set_names(c("총조회수", "구독자수", "영상수")) |> 
+  mutate(across(everything(), as.numeric)) |>
+  mutate(개설일 = kpop_channel$items[[1]]$snippet$publishedAt,
+         채널명 = kpop_channel$items[[1]]$snippet$title) |> 
+  relocate(개설일, .before = 총조회수) |> 
+  relocate(채널명, .before = 개설일) |> 
+  mutate(개설일 = ymd_hms(개설일)) |> 
+  mutate(개설일 = format(개설일, "%Y년 %m월 %d일")) 
+
+## K-POP 2 ---------
+
+kpop2_channel <- jsonlite::read_json('data/kpop2_channel.json')
+
+kpop2_tbl <- kpop2_channel$items[[1]]$statistics |> 
+  enframe() |> 
+  mutate(stat = map_chr(value, 1)) |> 
+  select(-value) |>
+  pivot_wider(names_from = name, values_from = stat) |> 
+  select(-hiddenSubscriberCount) |>
+  set_names(c("총조회수", "구독자수", "영상수")) |> 
+  mutate(across(everything(), as.numeric)) |>
+  mutate(개설일 = kpop2_channel$items[[1]]$snippet$publishedAt,
+         채널명 = kpop2_channel$items[[1]]$snippet$title) |> 
+  relocate(개설일, .before = 총조회수) |> 
+  relocate(채널명, .before = 개설일) |> 
+  mutate(개설일 = ymd_hms(개설일)) |> 
+  mutate(개설일 = format(개설일, "%Y년 %m월 %d일")) 
+
+## K-POP 1,2 ---------
+
+sbs_tbl <- kpop_tbl |>
+  bind_rows(kpop2_tbl) 
+
+sbs_tbl |> 
+  gt() |> 
+    gt::fmt_number(columns = c(총조회수, 구독자수, 영상수), decimals = 0) |> 
+    gt_theme_hangul() |> 
+    tab_header(
+      title = "SBS 유튜브 K-POP 채널 정보"
+    )
 
 ```
 
+# 비디오
+
+## K-POP 2
 
 ```{r}
-youtuber_meta = data.frame(channel = c("부동산 읽어주는 남자"), 
-                           channel_id = "UC2QeHNJFfuQWB4cy3M-745g")
 
-ytber_id = get_channel_stats(channel_id = youtuber_meta$channel_id[1])
+kpop2_video <- jsonlite::read_json('data/kpop2_video_statistics.json')
 
+kpop2_raw <- tibble(
+  id = map_chr(kpop2_video, "id"),
+  title = map_chr(kpop2_video, "title"),
+  published_date = map_chr(kpop2_video, "published_date"),
+  view_count = map_chr(kpop2_video, "view_count"),
+  like_count = map_chr(kpop2_video, "like_count"),
+  favorite_count = map_chr(kpop2_video, "favorite_count"),
+  comment_count = map_chr(kpop2_video, "comment_count")
+)
+
+kpop2_tbl <- kpop2_raw |> 
+  mutate(게시일자 = ymd_hms(published_date)) |> 
+  select(-favorite_count) |>
+  mutate(across(view_count:comment_count, as.numeric)) |> 
+  pivot_longer(cols = view_count:comment_count, names_to = "구분", values_to = "횟수") |> 
+  select(-published_date) |> 
+  mutate(구분 = str_remove(구분, "_count")) 
+
+kpop2_tbl |> 
+  ggplot(aes(x = 게시일자, y = 횟수)) +
+    geom_line(aes(color = 구분)) +
+    geom_point(aes(color = 구분)) +
+    facet_wrap(~구분, scales = "free_y") +
+    scale_y_sqrt(labels = scales::comma) +
+    theme_korean() +
+  theme(plot.title = element_text(size = 16, face = "bold"),
+        plot.subtitle = element_text(size = 12),
+        axis.text.x = element_text(size = 6),
+        axis.text.y = element_text(size = 8),
+        axis.title.x = element_text(size = 10),
+        axis.title.y = element_text(size = 10),
+        panel.spacing.x = unit(0.05, "lines"),
+        panel.spacing.y = unit(-0.20, "lines"),
+        legend.position = "none") +
+    labs(
+      title = "SBS K-POP 2 채널 비디오 통계",
+      x = "게시일자",
+      y = "횟수"
+    ) 
 ```
 
 
+### 조회수 Top 10
+
+```{r}
+kpop2_tbl |> 
+  filter(구분 == "view") |>
+  arrange(desc(횟수)) |> 
+  slice_head(n = 10) |> 
+  select(-구분) |> 
+  mutate(id = str_glue("<a href = https://www.youtube.com/watch?v={id}>바로보기</a>"), 
+         id = map(id, gt::html))  |> 
+  gt() |> 
+    gt::fmt_number(columns = 횟수, decimals = 0) |> 
+    gt_theme_hangul() |> 
+    tab_header(
+      title = "SBS K-POP 2 채널 조회수 Top 5"
+    )
+```
+
+### 좋아요 Top 10
+
+```{r}
+kpop2_tbl |> 
+  filter(구분 == "like") |>
+  arrange(desc(횟수)) |> 
+  slice_head(n = 10) |> 
+  select(-구분) |> 
+  mutate(id = str_glue("<a href = https://www.youtube.com/watch?v={id}>바로보기</a>"), 
+         id = map(id, gt::html))  |> 
+  gt() |> 
+    gt::fmt_number(columns = 횟수, decimals = 0) |> 
+    gt_theme_hangul() |> 
+    tab_header(
+      title = "SBS K-POP 2 채널 좋아요(like) Top 5"
+    )
+```
+
+### 댓글 Top 10
+
+```{r}
+kpop2_tbl |> 
+  filter(구분 == "comment") |>
+  arrange(desc(횟수)) |> 
+  slice_head(n = 10) |> 
+  select(-구분) |> 
+  mutate(id = str_glue("<a href = https://www.youtube.com/watch?v={id}>바로보기</a>"), 
+         id = map(id, gt::html))  |> 
+  gt() |> 
+    gt::fmt_number(columns = 횟수, decimals = 0) |> 
+    gt_theme_hangul() |> 
+    tab_header(
+      title = "SBS K-POP 2 채널 댓글(comment) Top 5"
+    )
+```

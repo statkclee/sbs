@@ -1,6 +1,15 @@
 project:
   type: website
   output-dir: docs
+  resources:
+    - "data/*.mp3"
+    - "data/*.wav"
+  render:
+    - "*.qmd"
+    - "!*.Rmd"
+
+lang: ko
+date-format: "YYYY년 MM월 DD일"
 
 website:
   title: "SBS"
@@ -11,11 +20,40 @@ website:
       - href: sbs.qmd
         text: "SBS"
 
+
 format:
   html:
-    theme: cosmo
+    theme:
+      light: flatly
+      dark: darkly
     css: styles.css
+    code-link: true
+    code-fold: show
+    code-tools: true
+    code-block-bg: "white"
+    code-block-border-left: "#31BAE9"
+    highlight-style: github
     toc: true
+    date: last-modified
+    date-format: "YYYY년 MM월 DD일"        
 
+filters:
+   - lightbox
+lightbox: auto
 
+knitr:
+  opts_chunk:
+    echo: false
+    message: false
+    warning: false
+    collapse: true
+    code-overflow: code-overflow
+    comment: "#>"
+    R.options:
+      knitr.graphics.auto_pdf: true
+editor_options:
+  chunk_output_type: console
 
+editor: 
+  markdown: 
+    wrap: 72
